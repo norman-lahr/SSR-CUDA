@@ -1,0 +1,239 @@
+COPYRIGHT
+=========
+
+    SSR 0.2 -- Applying Simple Sampling Reduction on CPU and Nvidia CUDA enabled devices --
+    Copyright (C) 2011 Michael Schneider, Norman Lahr
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Contact: norman@lahr.email, mischnei@cdc.informatik.tu-darmstadt.de
+    
+    Refer to the file LICENSE for the details of the GPL.
+
+
+SSR 0.2 -- Applying Simple Sampling Reduction on CPU and Nvidia CUDA enabled devices --
+=======================================================================================
+
+SSR is an implementation of the Simple Sampling Reduction algorithm, published by
+Johannes Buchmann and Christoph Ludwig in "Practical Lattice Basis Sampling Reduction", which
+enables parallization of the sampling part on a graphics card. The program uses the 
+Number Theory Library (NTL 5.5.2) of Shoup from http://www.shoup.net.
+
+The Simple Sampling Reduction algorithm can be splitted in two parts: In the first part
+the lattice will be reduced by LLL, optional by BKZ algorithm. The second part samples a lot
+of vectors and can be parallized.
+In SSR the first part operates on the CPU. For the second part, the sampling part, you have the choice
+between operating on the CPU or on an Nvidia CUDA enabled graphics card. For this part
+three sampling methods were implemented: SAMPLE, SAMPLING, GENSAMPLE. You can choose, whether you want
+to run the sampling on the CPU or on a graphics card, but only the
+SAMPLE and SAMPLING methods were realized for parallel computing.
+
+
+AUTHORS
+=======
+
+Norman Lahr (norman@lahr.email)
+Michael Schneider (mischnei@cdc.informatik.tu-darmstadt.de)
+
+
+Requirements:
+=============
+
+	* NTL <url:http://www.shoup.net>.
+
+	* gmp <url:http://swox.com/gmp/>.
+    SSR does not reference gmp itself, but the build scripts assume
+    that NTL was built based on gmp arithmetic.
+    
+	* A sufficiently standard conforming C++ compiler.
+
+	* Nvidia CUDA enabled device, Device Driver, CUDA Toolkit, GPU Computing SDK.
+
+SSR was developed and tested on 64-bit Linux system with NTL 5.5.2, gmp 3.5.2, GCC 4.4.3, 
+cudatoolkit 3.2.16, devdriver 3.2, gpucomputingsdk 3.2.16.
+
+
+Installation:
+=============
+
+In the most simple cases, all you need to do is:
+
+	1) unpack the distribution archive and make the resulting directory your
+     working directory.
+	2) adjust the CUDA installation path in 'src/common.mk':
+	   CUDA_INSTALL_PATH ?= /your/path
+	3) go to directory 'src/' and run 'make'
+	4) SSR is compiled to 'src/bin/'
+
+
+USAGE:
+=====
+
+SSR operates on lattices, whose format is the same like the lattices of the 
+SVP-Challenge (http://www.latticechallenge.org/svp-challenge/). 
+The lattice bases in row notation should look like this: 
+[[1 2 3]
+[4 5 6]
+[7 8 9]
+]
+
+Usage: SSR [OPTIONS] [FILE]
+
+List of options:
+	-c	<optional DeviceID>
+		Enables CUDA for parallel computation of the sampling part
+		with the selected DeviceID.
+	
+	-o	<filename>
+		Filename for saving results.
+		
+	-n	<Number of CUDA Blocks> 
+		Indicates the amount of used CUDA blocks.
+		(default: 65535)
+		
+	-m	<Add maximal X smaller vectors v> 
+		It is possible, that there are several smaller vectors for parallel sampling. 
+		Therefore they can be added to the lattice. This option 
+		causes different runtimes for different values.
+		(default: 65535)
+		
+	-u	<Sample Space Bound>
+		1 <= u < dimension 
+		Indicates the number of samples, which will be produced.
+		(default: 24)
+		
+	-r	<Reducing Algorithm>
+		[BKZ|LLL] 
+		(default: BKZ)
+		
+	-d	<delta>
+		Parameter of BKZ.
+		(default: 0.99)
+		
+	-b	<blocksize>
+		Blocksize for the initial BKZ 
+		(default: 10)
+		
+	-B	<optional blocksize(in loop)>
+		Blocksize for BKZ in sample loop 
+		(default: value of -b)
+		
+	-g	<goal norm>
+		Abort criterion. The programm will stop if the actual norm 
+		is smaller than this value.
+		
+	-p	<precision(first)>
+		Precision of the initial BKZ or LLL 
+		(default: 3):
+		1: double (FP)
+		2: quasi quadruple precision (QP)
+		3: extended exponent doubles (XD)
+		4: arbitrary precision floating point (RR)
+		
+	-P	<optional precision(in loop)>
+		Precision of the BKZ or LLL in the sample loop 
+		(default: value of -p):
+		1: double (FP)
+		2: quasi quadruple precision (QP)
+		3: extended exponent doubles (XD)
+		4: arbitrary precision floating point (RR)
+		
+	-s	<Sampling Algorithm> 
+		[SA|GenSample|Sample] 
+		(default: Sample)
+		
+	-j	<j0>
+		Parameter for GenSample, smaller than Dimension n of given matrix 
+		(default: n)
+		
+	-k	<k> 
+		Parameter for GenSample, [1.0 .. 2.0]
+		(default: 1.5)
+		
+	-a	<a>
+		Parameter for GenSample, [0.8800 .. 0.9990]
+		(default:0.9500)
+		
+	-v	verbose
+
+
+Examples calls:
+---------------
+Example call for CPU version:			'./SSR ../../../../lattices/svpchallengedim60seed0.txt -v -u 32 -s sample -r lll -p 2 -P 2 -g 2270 -o svpchallenge-cuda-dim0060-blocksize0002-u32-p2-P2-m0.250000.reduced'
+
+Output for example call:
+
+05.08.2011 13:20:54  <Info> Sample Algorithm will produce 2147483647 Samples ...
+05.08.2011 13:20:54  <Info> Apply first LLL ...
+05.08.2011 13:21:12  <Info> Start searching for new vectors with SSR algorithm ...
+05.08.2011 13:21:12  <Info> Norm(B[0]) = 2305
+05.08.2011 13:21:12  <Info> Found smaller vector! 
+			Norm([new vector]) = 2287 (-2%)
+			[new vector] = [474 -168 -71 680 464 -228 -235 -420 232 52 -816 -563 -382 -397 33 84 -33 -35 -130 -161 -81 -38 2 94 -139 -162 -205 359 -180 299 -220 287 -28 140 -514 41 404 -128 248 -333 267 -144 -135 -511 112 310 -424 -13 -149 -128 261 -263 30 514 -193 -112 184 164 163 503]
+
+05.08.2011 13:21:12  <Info> Apply LLL ...
+05.08.2011 13:21:12  <Info> Norm(B[0]) = 2287
+05.08.2011 13:21:14  <Info> Found smaller vector! 
+			Norm([new vector]) = 2081 (-18%)
+			[new vector] = [-395 -400 -250 590 44 -302 -278 -47 -7 69 55 84 -355 -17 117 -286 -503 -81 -444 13 223 -328 163 -333 -362 -193 607 272 286 -240 180 -113 -68 267 37 207 -546 -227 -357 230 4 54 -241 361 -317 -239 -402 -114 -106 117 -506 104 137 -185 17 -178 50 -71 91 289]
+
+05.08.2011 13:21:14  <Info> Apply LLL ...
+05.08.2011 13:21:14  <Final Norm> 2081
+05.08.2011 13:21:14  <Info> Finish
+
+
+
+Example call for CUDA version:		'./SSR ../../../../lattices/svpchallengedim60seed0.txt -v -c 0 -u 32 -s sample -r lll -p 2 -P 2 -g 2144 -m 16 -o svpchallenge-cuda-dim0060-blocksize0002-u32-p2-P2-m0.250000.reduced'
+
+Output for example call:
+
+05.08.2011 13:24:40  <Info> SSR algorithm on GPU will produce 2147483647 Samples ...
+05.08.2011 13:24:40  <Info> Apply first LLL ...
+05.08.2011 13:25:00  <Info> Using CUDA device [1]: GeForce GTX 295
+05.08.2011 13:25:00  <Info> Start searching for new vectors with SSR algorithm ...
+05.08.2011 13:25:00  <Info> Norm(B[0]) = 2578
+05.08.2011 13:25:00  <Info> Found 17 smaller vector(s)!                                             
+			Norm([Smallest vector]) = 2304 (-21%)
+			[Smallest vector] = [-83 103 150 -11 274 -226 35 -485 -495 222 21 -420 604 466 557 -146 325 -264 -116 -227 1047 -276 -235 132 -235 42 -392 194 0 -103 -432 -40 -284 -251 176 50 -259 -309 -51 226 -187 98 -128 195 -39 339 25 19 250 230 -393 129 274 147 514 289 -317 231 -133 282]
+
+05.08.2011 13:25:00  <Info> Apply LLL ...
+05.08.2011 13:25:00  <Info> Norm(B[0]) = 2304
+05.08.2011 13:25:06  <Info> Found 2 smaller vector(s)!                                              
+			Norm([Smallest vector]) = 2254 (-5%)
+			[Smallest vector] = [-36 -108 467 -565 -194 19 63 200 -258 -74 -70 333 74 345 -359 96 14 -412 -485 -402 -32 266 406 366 24 -203 -61 -428 -324 45 -101 -27 -220 -1 -94 -375 -508 438 -122 -203 -205 342 -148 -75 -63 23 464 -127 729 -123 -251 -36 103 -295 -600 -442 121 298 -28 469]
+
+05.08.2011 13:25:06  <Info> Apply LLL ...
+05.08.2011 13:25:06  <Info> Norm(B[0]) = 2254
+05.08.2011 13:25:07  <Info> Found 1 smaller vector(s)!                                              
+			Norm([Smallest vector]) = 2141 (-10%)
+			[Smallest vector] = [366 378 447 -14 127 374 -244 -184 -243 -179 -414 186 -201 -358 -32 -184 -465 357 70 109 -308 -294 39 98 118 321 -118 -255 -99 -52 -13 -8 32 -175 -119 -4 -11 235 380 -81 343 -29 522 81 568 -102 -443 107 -153 113 477 -242 -135 -150 41 -613 22 -147 -285 -751]
+
+05.08.2011 13:25:07  <Info> Apply LLL ...
+05.08.2011 13:25:07  <Final Norm> 2141
+05.08.2011 13:25:08  <Info> Finish
+
+
+Known issues:
+===============
+
+	* /
+
+Version info
+===============
+	* 0.1: - Initial version
+	
+	* 0.2: - Samplerate output fixed
+	       - New display outputs
+	       - Everytime a new basis/vector was found, it is saved to file immediately
+	       - Default name of the output file changed
